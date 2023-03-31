@@ -15,9 +15,8 @@ namespace API.Extensions
             services.AddDbContext<DataContext>(
                 options =>
                 {
-                    // options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-                    options.UseSqlite("Data source=datingapp.db");
-                    // options.UseSql
+                    options.UseSqlite(configuration.GetConnectionString("DefaultConnection"));
+                    options.UseSqlite("Data source=datingapp.db");                    
                 }
             );
 
