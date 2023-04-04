@@ -16,7 +16,7 @@ namespace API.Extensions
                 options =>
                 {
                     options.UseSqlite(configuration.GetConnectionString("DefaultConnection"));
-                    options.UseSqlite("Data source=datingapp.db");                    
+                    // options.UseSqlite("Data source=datingapp.db");                    
                 }
             );
 
