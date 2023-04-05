@@ -1,5 +1,7 @@
+using API.Data;
 using API.Extensions;
 using API.Middleware;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,17 +14,18 @@ builder.Services.AddSwaggerGen();
 
 
 ApplicationServiceExtensions.AddApplicationServices(builder.Services, builder.Configuration);
+IdentityServiceExtensions.AddIdentityServices(builder.Services, builder.Configuration);
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 
 app.UseMiddleware<ExceptionMiddleware>();
-// if (app.Environment.IsDevelopment())
-// {
-//     app.UseSwagger();
-//     app.UseSwaggerUI();
-// }
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors(builder => builder
     .AllowAnyHeader()
@@ -34,6 +37,20 @@ app.UseAuthorization();
 
 app.UseHttpsRedirection();
 app.MapControllers();
+
+using var scoped = app.Services.CreateScope();
+var services = scoped.ServiceProvider;
+try 
+{
+    var context = services.GetRequiredService<DataContext>();
+    await context.Database.MigrateAsync();    
+    await Seed.SeedUsers(context);
+}
+catch(Exception ex)
+{
+    var logger = services.GetService<ILogger<Program>>();
+    logger.LogError(ex, "An error occured during migrations");
+}
 
 app.Run();
 
