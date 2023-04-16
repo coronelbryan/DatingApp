@@ -5,6 +5,7 @@ using API.Interfaces;
 using AutoMapper;
 using API.DTOs;
 using System.Security.Claims;
+using API.Extensions;
 
 namespace API.Controllers
 {
@@ -13,13 +14,16 @@ namespace API.Controllers
     {
         private readonly IUserRepository userRepository;
         private readonly IMapper mapper;
+        private readonly IPhotoService photoService;
 
         public UsersController(
             IUserRepository userRepository,
-            IMapper mapper)
+            IMapper mapper,
+            IPhotoService photoService)
         {
             this.userRepository = userRepository;
             this.mapper = mapper;
+            this.photoService = photoService;
         }
 
         [HttpGet]
@@ -38,7 +42,7 @@ namespace API.Controllers
         [HttpPut]
         public async Task<ActionResult> UpdateUser(MemberUpdateDTO memberUpdateDTO)
         {
-            var username = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var username = User.GetUserName();
             var user = await this.userRepository.GetUserBynameAsync(username);
 
             if (user == null)
@@ -53,6 +57,44 @@ namespace API.Controllers
             }
 
             return BadRequest("Failed to update user");
+        }
+
+        [HttpPost("add-photo")]
+        public async Task<ActionResult<PhotoDTO>> AddPhoto(IFormFile file)
+        {
+            var username = User.GetUserName();
+            var user = await this.userRepository.GetUserBynameAsync(username);
+
+            if (user == null)
+            {
+                return BadRequest();
+            }
+
+            var result = await this.photoService.AddPhotoAsync(file);
+
+            if (result.Error != null)
+            {
+                return BadRequest(result.Error.Message);
+            }
+
+            var photo = new Photo
+            {
+                Url = result.SecureUrl.AbsoluteUri,
+                PublicId = result.PublicId
+            };
+
+            photo.IsMain = user.Photos.Count == 0;
+            user.Photos.Add(photo);
+
+            if (await this.userRepository.SaveAllChangeAsync())
+            {
+                return CreatedAtAction(
+                    nameof(this.GetUser),
+                    new { username = user.UserName },
+                    this.mapper.Map<PhotoDTO>(photo));
+            }
+
+            return BadRequest();
         }
     }
 }
