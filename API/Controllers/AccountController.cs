@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using API.DTOs;
 using API.Interfaces;
+using AutoMapper;
 
 namespace API.Controllers
 {
@@ -14,14 +15,17 @@ namespace API.Controllers
     {
         private readonly DataContext dataContext;
         private readonly ITokenService tokenService;
+        private readonly IMapper mapper;
 
         public AccountController(
             DataContext dataContext,
-            ITokenService tokenService
+            ITokenService tokenService,
+            IMapper mapper
         )
         {
             this.dataContext = dataContext;
             this.tokenService = tokenService;
+            this.mapper = mapper;
         }
 
         [HttpPost("register")]
@@ -33,20 +37,19 @@ namespace API.Controllers
             }
 
             using var hmac = new HMACSHA512();
-            var user = new AppUser
-            {
-                UserName = registerDTO.Username.ToLower(),
-                PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDTO.Password)),
-                PsswordSalt = hmac.Key
-            };
+
+            var user = this.mapper.Map<AppUser>(registerDTO);
+            user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDTO.Password));
+            user.PsswordSalt = hmac.Key;
 
             this.dataContext.Add(user);
             await this.dataContext.SaveChangesAsync();
 
             return new UserDTO
             {
-                UserName  = user.UserName,
-                Token = tokenService.CreateToken(user)
+                UserName = user.UserName,
+                Token = tokenService.CreateToken(user),
+                KnownAs = user.KnownAs
             };
         }
 
@@ -76,7 +79,8 @@ namespace API.Controllers
             return new UserDTO
             {
                 UserName = user.UserName,
-                Token = tokenService.CreateToken(user)
+                Token = tokenService.CreateToken(user),
+                KnownAs = user.KnownAs
             };
         }
 
